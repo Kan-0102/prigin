@@ -25,11 +25,26 @@ struct Token{
 //現在着目しているトークン
 Token *token;
 
+char *user_input;
+
+void error_at(char *loc, char *fmt, ...){
+    va_list ap; //va_list調べる
+    va_start(ap, fmt);
+    
+    int pos = loc - user_input; //現在の文字アドレスから入力文字列のアドレスを引くことで文字数を出す
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s", pos, " "); //その文字数分空白を開ける
+    fprintf(stderr, "^ ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
 //エラーを報告するための関数　printfと同じ引数を取る
 void error(char *fmt, ...){ //...は可変長引数で，任意の数の引数を渡せる
     va_list ap; //可変長引数を格納するオブジェクト
-    va_start(ap, fmt);  //可変長引数の処理開始　apは引数リスト　fmtは最後の確定引数
-    vfprintf(stderr, fmt, ap);  //vは可変長をフォーマット
+    va_start(ap, fmt);  //リストの初期化　ap:可変長引数リストを格納する　fmt:固定引数　可変長引数の開始位置
+    vfprintf(stderr, fmt, ap);  
     fprintf(stderr, "\n");
     exit(1);
 }
@@ -45,14 +60,14 @@ bool consume(char op){
 //次のトークンが記号の場合，トークンを1つ読み進める．それ以外の場合エラーを報告．
 void expect(char op){
     if (token->kind != TK_RESERVED || token->str[0] != op)
-      error("'%c'ではありません", op);
+      error_at(token->str,"'%c'ではありません", op);
     token = token->next;
 }
 
 //次のトークンが数値の場合，トークンを1つ読み進めてその数値を返す．それ以外の場合エラーを報告．
 int expect_number(){
     if (token->kind != TK_NUM)
-      error("数ではありません");
+      error_at(token->str, "数ではありません");
     int val = token->val;
     token = token->next;
     return val;
@@ -109,8 +124,10 @@ int main(int argc, char **argv){
         return 1;
     }
 
+    user_input = argv[1];
+
     //トークナイズする
-    token = tokenize(argv[1]);
+    token = tokenize(user_input);
 
     //アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
