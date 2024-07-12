@@ -5,6 +5,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+//プロトタイプ宣言
+typedef struct Node Node;
+typedef struct Token Token;
+Node *expr();
+Node *mul();
+Node *unary();
+Node *primary();
+void gen(Node *node);
+bool consume(char op);
+void expect(char op);
+int expect_number();
+
 //抽象構文木のノードの種類
 typedef enum{
     ND_ADD, // +
@@ -13,8 +25,6 @@ typedef enum{
     ND_DIV, // /
     ND_NUM, // 整数
 }NodeKind;
-
-typedef struct Node Node;
 
 //抽象構文木のノードの型
 struct Node{
@@ -31,8 +41,6 @@ typedef enum{
     TK_EOF,         //入力の終わりを表すトークン
 }TokenKind;
 
-typedef struct Token Token;
-
 // トークン型
 struct Token{
     TokenKind kind; //トークンの型
@@ -40,17 +48,6 @@ struct Token{
     int val;        //kindがTK_NUMの場合，その数値
     char *str;      //トークン文字列
 };
-
-
-//プロトタイプ宣言
-Node *expr();
-Node *mul();
-Node *primary();
-void gen(Node *node);
-bool consume(char op);
-void expect(char op);
-int expect_number();
-
 
 Token *token; //現在着目しているトークン
 char *user_input;
@@ -83,16 +80,24 @@ Node *expr(){
 }
 
 Node *mul(){
-    Node *node = primary();
+    Node *node = unary();
 
     for(;;){
         if (consume('*'))
-         node = new_node(ND_MUL, node, primary());
+         node = new_node(ND_MUL, node, unary());
         else if(consume('/'))
-         node = new_node(ND_DIV, node, primary());
+         node = new_node(ND_DIV, node, unary());
         else
          return node;
     }
+}
+
+Node *unary(){
+    if(consume('+'))
+      return primary();
+    if(consume('-'))
+      return new_node(ND_SUB, new_node_num(0), primary());
+    return primary();
 }
 
 Node *primary(){
@@ -197,7 +202,6 @@ Token *new_token(TokenKind kind, Token *cur, char *str){
     return tok;
 } 
 
-
 //入力文字列pをトークナイズしてそれを返す
 Token *tokenize(char *p){
     Token head;
@@ -221,13 +225,12 @@ Token *tokenize(char *p){
             cur->val = strtol(p, &p, 10);
             continue;
         }
-        error("トークナイズできません");
+        error_at(p, "トークナイズできません");
     }
 
     new_token(TK_EOF, cur, p);
     return head.next;
 }
-
 
 int main(int argc, char **argv){
     if (argc != 2){
